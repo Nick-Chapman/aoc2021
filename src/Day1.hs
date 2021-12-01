@@ -5,10 +5,12 @@ import Misc (check,readInts)
 
 main :: IO ()
 main = do
-  let sam = [1,2,3,4]
   inp <- readInts "input/day1.input"
-  print ("day1, sample", check 10 $ solve sam)
-  print ("day1, part1", check 9137 $ solve inp)
+  print ("day1, part1", check 1316 $ countIncreases inp)
+  print ("day1, part2)", check 1344 $ countIncreases (slide3 inp))
 
-solve :: [Int] -> Int
-solve xs = sum xs
+countIncreases :: [Int] -> Int
+countIncreases xs = length [ () | (me,last) <- zip (tail xs) xs, me>last ]
+
+slide3 :: [Int] -> [Int]
+slide3 xs = [ a+b+c | (a,(b,c)) <- zip (tail (tail xs)) (zip (tail xs) xs) ]
