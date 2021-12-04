@@ -2,7 +2,7 @@ module Day3 (main) where
 
 import Data.List (transpose)
 import Misc (check)
-import Par (Par,parse,separated,nl,many,alts,key)
+import Par4 (Par,parse,separated,nl,many,alts,lit)
 
 main :: IO ()
 main = do
@@ -21,8 +21,8 @@ gram = separated nl line
   where
     line = many bit
     bit = alts [z,o]
-    z = do key "0"; pure Z
-    o = do key "1"; pure O
+    z = do lit '0'; pure Z
+    o = do lit '1'; pure O
 
 data Bit = Z | O deriving (Eq,Show)
 type Bin = [Bit]

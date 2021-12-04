@@ -5,7 +5,7 @@ import Data.Map (Map)
 import Data.Ord (comparing)
 import Data.Set (Set)
 import Misc (check)
-import Par (Par,parse,separated,nl,lit,int,ws0,ws1)
+import ParE (Par,parse,separated,nl,lit,int,ws0,ws1)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -26,19 +26,11 @@ gram = setup
   where
     setup = do
       draw <- Draw <$> separated (lit ',') int
-      nl;nl
-      boards <- separated (do nl; nl) board
+      nl2
+      boards <- separated nl2 board
       pure $ Setup { draw, boards }
-
-    board = do
-      a <- line
-      b <- lineX
-      c <- lineX
-      d <- lineX
-      e <- lineX
-      pure $ Board $ concat [a,b,c,d,e]
-
-    lineX = do nl; line
+    nl2 = do nl; nl
+    board = (Board . concat) <$> separated nl line
     line = do ws0; separated ws1 int
 
 data Setup = Setup { draw :: Draw, boards :: [Board] } deriving Show

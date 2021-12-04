@@ -1,7 +1,7 @@
 module Day2 (main) where
 
 import Misc (check)
-import Par (Par,parse,separated,nl,alts,key,int)
+import Par4 (Par,parse,separated,nl,alts,key,int)
 
 main :: IO ()
 main = do
@@ -15,7 +15,7 @@ main = do
 load :: FilePath -> IO [Command]
 load path = parse gram <$> readFile path
 
-data Command = Forward Int | Down Int | Up Int
+data Command = Forward Int | Down Int | Up Int deriving Show
 
 gram :: Par [Command]
 gram = separated nl line
