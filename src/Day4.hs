@@ -25,75 +25,69 @@ gram :: Par Setup
 gram = setup
   where
     setup = do
-      draw <- Draw <$> separated (lit ',') int
+      called <- Called <$> separated (lit ',') int
       nl2
       boards <- separated nl2 board
-      pure $ Setup { draw, boards }
+      pure $ Setup { called, boards }
     nl2 = do nl; nl
     board = (Board . concat) <$> separated nl line
     line = do ws0; separated ws1 int
 
-data Setup = Setup { draw :: Draw, boards :: [Board] } deriving Show
+data Setup = Setup { called :: Called, boards :: [Board] } deriving Show
 data Board = Board [Int] deriving Show
-data Draw = Draw [Int] deriving Show
+data Called = Called [Int] deriving Show
 
+data Drawn = Drawn (Set Int)
 data Pos = Pos Int Int deriving (Eq,Ord)
 data Marked = Marked (Set Pos)
 data Line = Line (Set Pos)
+data Outcome = Outcome { gameLength :: Int, score :: Int }
 
 part1 :: Setup -> Int
-part1 Setup{draw,boards} = d*u
+part1 Setup{called,boards} = score
   where
-    (_,d,u) = head $ sortBy (comparing fst3) [ play draw b | b <- boards ]
-    fst3 (x,_,_) = x
+    Outcome{score} = head $ sortBy (comparing gameLength) [ play called b | b <- boards ]
 
 part2 :: Setup -> Int
-part2 Setup{draw,boards} = d*u
+part2 Setup{called,boards} = score
   where
-    (_,d,u) = head $ reverse $ sortBy (comparing fst3) [ play draw b | b <- boards ]
-    fst3 (x,_,_) = x
+    Outcome{score} = head $ reverse $ sortBy (comparing gameLength) [ play called b | b <- boards ]
+
+play :: Called -> Board -> Outcome
+play (Called xs) board = res
+  where
+    mapping = induce board
+    res = loop 0 (Marked Set.empty) (Drawn Set.empty) xs
+    loop :: Int -> Marked -> Drawn -> [Int] -> Outcome
+    loop i m drawn = \case
+      [] -> error "play.loop"
+      x:xs -> do
+        let m1 = case Map.lookup x mapping of Nothing -> m; Just pos -> mark pos m
+        let drawn1 = draw x drawn
+        if wins m1
+          then Outcome { gameLength = i, score = x * scoreUnmarked board drawn1}
+          else loop (i+1) m1 drawn1 xs
 
 induce :: Board -> Map Int Pos
-induce (Board nums) =
-  Map.fromList (zip nums [ Pos x y | x <- [0..4], y <- [0..4] ])
-
-play :: Draw -> Board -> (Int,Int,Int)
-play draw board = res
-  where
-    boardMapping = induce board
-    res = loop 0 marked0 [] draw
-    loop :: Int -> Marked -> [Int] -> Draw -> (Int,Int,Int)
-    loop i m drawn = \case
-      Draw [] -> error "play.loop"
-      Draw (d:draw) -> do
-        let
-          m1 = case Map.lookup d boardMapping of
-            Nothing -> m
-            Just pos -> mark pos m
-
-        let drawn1 = d:drawn
-        if hasLine m1 then (i, d, scoreUnmarked board drawn1) else
-          loop (i+1) m1 drawn1 (Draw draw)
-
-marked0 :: Marked
-marked0 = Marked Set.empty
-
-scoreUnmarked :: Board -> [Int] -> Int
-scoreUnmarked (Board nums) drawn = do
-  let d = Set.fromList drawn
-  sum [ n | n <- nums, not (n `elem` d) ]
+induce (Board nums) = Map.fromList (zip nums [ Pos x y | x <- [0..4], y <- [0..4] ])
 
 mark :: Pos -> Marked -> Marked
 mark p (Marked ps) = Marked (Set.insert p ps)
 
-hasLine :: Marked -> Bool
-hasLine (Marked m) = any (m `contains`) allLines
+draw :: Int -> Drawn -> Drawn
+draw x (Drawn xs) = Drawn (Set.insert x xs)
 
-contains :: Set Pos -> Line -> Bool
-contains ps (Line xs) = xs `Set.isSubsetOf` ps
-
-allLines :: [Line]
-allLines = h ++ v
+wins :: Marked -> Bool
+wins (Marked m) = any (m `contains`) allLines
   where
-    h = [ Line $ Set.fromList [ Pos x y | x <- [0..4]] | y <- [0..4] ]
-    v = [ Line $ Set.fromList [ Pos x y | y <- [0..4]] | x <- [0..4] ]
+    contains :: Set Pos -> Line -> Bool
+    contains ps (Line xs) = xs `Set.isSubsetOf` ps
+
+    allLines :: [Line]
+    allLines = h ++ v
+      where
+        h = [ Line $ Set.fromList [ Pos x y | x <- [0..4]] | y <- [0..4] ]
+        v = [ Line $ Set.fromList [ Pos x y | y <- [0..4]] | x <- [0..4] ]
+
+scoreUnmarked :: Board -> Drawn -> Int
+scoreUnmarked (Board nums) (Drawn drawn) = sum [ n | n <- nums, not (n `elem` drawn) ]
