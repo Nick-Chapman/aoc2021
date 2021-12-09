@@ -66,7 +66,7 @@ deduce (Obs sss) = the [ mix | mix <- allMix, all (checkMix mix) sss ]
 reveal :: Mix -> SS -> Digit
 reveal mix ss = the [ d | d <- [0..9], applyMix mix ss == ssOfDigit d ]
 
-data Mix = Mix [Seg] deriving Show -- one of the 720 perms
+data Mix = Mix [Seg] deriving Show -- one of the (7!) 5760 perms
 
 allMix :: [Mix]
 allMix = [ Mix xs | xs <- permutations [A,B,C,D,E,F,G] ]
