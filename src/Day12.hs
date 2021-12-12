@@ -58,36 +58,33 @@ type Path = [Node]
 
 
 part1 :: Setup -> Int
-part1 setup = do
-  length (explore 0 [Start] Start)
+part1 setup = length (paths continue setup)
   where
-    m :: Map Node (Set Node)
-    m = Map.fromListWith Set.union
-      [ (k,Set.fromList [v]) | (a,b) <- setup, (k,v) <- [(a,b),(b,a)] ]
-
-    step :: Node -> [Node]
-    step n = maybe [] Set.toList $ Map.lookup n m
-
-    explore :: Int -> [Node] -> Node -> [Path]
-    explore i acc n1 =
-       if n1==End then [reverse acc] else
-         [ path
-         | n2 <- step n1
-         , okToContinue n2
-         , path <- explore (i-1) (n2:acc) n2 ]
-      where
-        okToContinue :: Node -> Bool
-        okToContinue n2 =
-          case n2 of
-            Start -> False
-            End -> True
-            Small{} -> n2 `notElem` acc
-            Big{} -> True
-
+    continue acc = \case
+      Start -> False
+      End -> True
+      Big{} -> True
+      node@Small{} -> node `notElem` acc
 
 part2 :: Setup -> Int
-part2 setup = do
-  length (explore 0 [Start] Start)
+part2 setup = length (paths continue setup)
+  where
+    continue acc = \case
+      Start -> False
+      End -> True
+      Big{} -> True
+      node@Small{} -> node `notElem` acc || noSmallDups acc
+
+    noSmallDups :: [Node] -> Bool
+    noSmallDups ns = do
+      let smalls = [ w | Small w <- ns ]
+      Set.size (Set.fromList smalls) == length smalls
+
+type Continue = [Node] -> Node -> Bool
+
+paths :: Continue -> Setup -> [Path]
+paths continue setup = do
+  explore 0 [Start] Start
   where
     m :: Map Node (Set Node)
     m = Map.fromListWith Set.union
@@ -101,19 +98,5 @@ part2 setup = do
        if n1==End then [reverse acc] else
          [ path
          | n2 <- step n1
-         , okToContinue n2
+         , continue acc n2
          , path <- explore (i-1) (n2:acc) n2 ]
-      where
-        okToContinue :: Node -> Bool
-        okToContinue n2 =
-          case n2 of
-            Start -> False
-            End -> True
-            Small{} -> n2 `notElem` acc || noSmallDups acc
-            Big{} -> True
-
-
-noSmallDups :: [Node] -> Bool
-noSmallDups ns = do
-  let smalls = [ w | Small w <- ns ]
-  Set.size (Set.fromList smalls) == length smalls
