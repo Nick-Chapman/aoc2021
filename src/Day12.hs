@@ -84,7 +84,7 @@ type Continue = [Node] -> Node -> Bool
 
 paths :: Continue -> Setup -> [Path]
 paths continue setup = do
-  explore 0 [Start] Start
+  explore [Start] Start
   where
     m :: Map Node (Set Node)
     m = Map.fromListWith Set.union
@@ -93,10 +93,10 @@ paths continue setup = do
     step :: Node -> [Node]
     step n = maybe [] Set.toList $ Map.lookup n m
 
-    explore :: Int -> [Node] -> Node -> [Path]
-    explore i acc n1 =
+    explore :: [Node] -> Node -> [Path]
+    explore acc n1 =
        if n1==End then [reverse acc] else
          [ path
          | n2 <- step n1
          , continue acc n2
-         , path <- explore (i-1) (n2:acc) n2 ]
+         , path <- explore (n2:acc) n2 ]
