@@ -1,6 +1,6 @@
 
 -- | Earley Parser Combinators
-module ParE (Par,parse,word,key,int,ws0,ws1,sp,nl,lit,sat,char,alts,opt,separated,many,some,digit) where
+module ParE (Par,parse,word,key,int,ws0,ws1,sp,nl,lit,sat,char,alts,opt,separated,terminated,many,some,digit) where
 
 import Control.Applicative (Alternative,empty,(<|>),many,some)
 import Control.Monad (ap,liftM)
@@ -16,6 +16,7 @@ instance Alternative Par where empty = Fail; (<|>) = Alt
 instance Monad Par where (>>=) = Bind
 
 separated :: Par () -> Par a -> Par [a]
+terminated :: Par () -> Par a -> Par [a]
 opt :: Par a -> Par (Maybe a)
 alts :: [Par a] -> Par a
 word :: Par String
@@ -31,6 +32,7 @@ sat :: (Char -> Bool) -> Par Char
 char :: Par Char
 
 separated sep p = do x <- p; alts [ pure [x], do sep; xs <- separated sep p; pure (x:xs) ]
+terminated term p = alts [ pure [], do x <- p; term; xs <- terminated term p; pure (x:xs) ]
 opt p = alts [ pure Nothing, fmap Just p ]
 alts = foldl Alt Fail
 word = some $ sat Char.isAlpha
