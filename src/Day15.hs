@@ -46,8 +46,8 @@ part2 vss = solve maze
       , (x,v) <- zip [0..] vs
       ]
 
-bottonRightCorner :: Maze -> Pos
-bottonRightCorner maze = do
+bottomRightCorner :: Maze -> Pos
+bottomRightCorner maze = do
   let mx = maximum [ x | (x,_) <- Map.keys maze ]
   let my = maximum [ y | (_,y) <- Map.keys maze ]
   (mx,my)
@@ -55,7 +55,7 @@ bottonRightCorner maze = do
 solve :: Maze -> Int
 solve maze = do
   let waves = explore maze
-  let goal = bottonRightCorner maze
+  let goal = bottomRightCorner maze
   look goal $ best $ head $ dropWhile (not . Map.member goal . best) waves
 
 data State = State { best :: Map Pos Int
