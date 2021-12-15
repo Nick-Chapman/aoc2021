@@ -46,50 +46,49 @@ part2 vss = solve maze
       , (x,v) <- zip [0..] vs
       ]
 
-solve :: Maze -> Int
-solve maze = do
+bottonRightCorner :: Maze -> Pos
+bottonRightCorner maze = do
   let mx = maximum [ x | (x,_) <- Map.keys maze ]
   let my = maximum [ y | (_,y) <- Map.keys maze ]
-  let goalPos = (mx,my)
-  let ys = dropWhile (not . (reached goalPos)) (explore maze)
-  pickAnswer (head ys)
+  (mx,my)
 
-data State = State { acc :: Set Pos, frontier :: Map Int (Set Pos) } deriving Show
+solve :: Maze -> Int
+solve maze = do
+  let waves = explore maze
+  let goal = bottonRightCorner maze
+  look goal $ best $ head $ dropWhile (not . Map.member goal . best) waves
+
+data State = State { best :: Map Pos Int
+                   , frontier :: Map Int (Set Pos) } deriving Show
 
 explore :: Maze -> [State]
 explore m = iterate (step m) (start m)
 
 start :: Maze -> State
 start _m = State
-  { acc = Set.empty
+  { best = Map.empty
   , frontier = Map.fromList [ (0, Set.fromList [ (0,0) ]) ]
   }
 
-reached :: Pos -> State -> Bool
-reached goalPos State{frontier} = goalPos `elem` points
-  where
-    minK = minimum (Map.keys frontier)
-    points = look minK frontier
-
-pickAnswer :: State -> Int
-pickAnswer State{frontier} = minimum (Map.keys frontier)
-
 step :: Maze -> State -> State
-step maze State{acc=acc0,frontier=frontier0} = State{acc=acc1,frontier=frontier1}
+step maze State{best=best0,frontier=frontier0} = State{best=best1,frontier=frontier1}
   where
-    acc1 = Set.union acc0 pointsToExpand
-    frontier1 = Map.unionWith Set.union newFrontier (Map.delete minK frontier0)
-
     minK = minimum (Map.keys frontier0)
     pointsToExpand = look minK frontier0
 
-    newFrontier = Map.fromListWith Set.union
-      [ (v + minK, Set.fromList [q])
+    bestx =
+      [ (q, v + minK)
       | p <- Set.toList pointsToExpand
       , q <- adjacent p
-      , q `Set.notMember` acc0
+      , q `Map.notMember` best0
       , v <- maybeToList $ Map.lookup q maze
       ]
+
+    best1 = Map.union best0 (Map.fromList bestx)
+    frontier1 =
+      Map.unionWith Set.union
+      (Map.fromListWith Set.union [ (v, Set.fromList [q]) | (q,v) <- bestx ])
+      (Map.delete minK frontier0)
 
 adjacent :: Pos -> [Pos]
 adjacent (x,y) = [(x-1,y),(x+1,y),(x,y-1),(x,y+1)]
