@@ -3,7 +3,7 @@ module Day15 (main) where
 import Data.Map (Map)
 import Data.Maybe (maybeToList,fromJust)
 import Data.Set (Set)
-import Misc (check,look)
+import Misc (check)
 import Par4 (Par,parse,separated,nl,some,digit)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -56,9 +56,11 @@ solve :: Maze -> Int
 solve maze = do
   let waves = explore maze
   let goal = bottomRightCorner maze
-  look goal $ best $ head $ dropWhile (not . Map.member goal . best) waves
+  let reachGoal State{frontier} = goal `Set.member` snd (Map.findMin frontier)
+  let findGoal State{frontier} = fst $ Map.findMin frontier
+  findGoal $ head $ dropWhile (not . reachGoal) waves
 
-data State = State { best :: Map Pos Int
+data State = State { visited :: Set Pos
                    , frontier :: Map Int (Set Pos) } deriving Show
 
 explore :: Maze -> [State]
@@ -66,28 +68,27 @@ explore m = iterate (step m) (start m)
 
 start :: Maze -> State
 start _m = State
-  { best = Map.empty
-  , frontier = Map.fromList [ (0, Set.fromList [ (0,0) ]) ]
+  { visited = Set.fromList [start]
+  , frontier = Map.fromList [ (0, Set.fromList [start]) ]
   }
+  where start = (0,0)
 
 step :: Maze -> State -> State
-step maze State{best=best0,frontier=frontier0} = State{best=best1,frontier=frontier1}
+step maze State{visited=visited0,frontier=frontier0} = State{visited=visited1,frontier=frontier1}
   where
     ((minK,pointsToExpand),frontier0') = fromJust $ Map.minViewWithKey frontier0
 
-    bestx =
-      [ (q, v + minK)
-      | p <- Set.toList pointsToExpand
-      , q <- adjacent p
-      , q `Map.notMember` best0
+    newPoints = [ q | p <- Set.toList pointsToExpand , q <- adjacent p , q `Set.notMember` visited0 ]
+
+    newFrontier =
+      Map.fromListWith Set.union
+      [ (v + minK, Set.fromList [q])
+      | q <- newPoints
       , v <- maybeToList $ Map.lookup q maze
       ]
 
-    best1 = Map.union best0 (Map.fromList bestx)
-    frontier1 =
-      Map.unionWith Set.union
-      (Map.fromListWith Set.union [ (v, Set.fromList [q]) | (q,v) <- bestx ])
-      frontier0'
+    visited1 = Set.union visited0 (Set.fromList newPoints)
+    frontier1 = Map.unionWith Set.union newFrontier frontier0'
 
 adjacent :: Pos -> [Pos]
 adjacent (x,y) = [(x-1,y),(x+1,y),(x,y-1),(x,y+1)]
