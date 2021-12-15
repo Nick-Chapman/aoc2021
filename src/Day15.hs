@@ -1,7 +1,7 @@
 module Day15 (main) where
 
 import Data.Map (Map)
-import Data.Maybe (maybeToList)
+import Data.Maybe (maybeToList,fromJust)
 import Data.Set (Set)
 import Misc (check,look)
 import Par4 (Par,parse,separated,nl,some,digit)
@@ -73,8 +73,7 @@ start _m = State
 step :: Maze -> State -> State
 step maze State{best=best0,frontier=frontier0} = State{best=best1,frontier=frontier1}
   where
-    minK = minimum (Map.keys frontier0)
-    pointsToExpand = look minK frontier0
+    ((minK,pointsToExpand),frontier0') = fromJust $ Map.minViewWithKey frontier0
 
     bestx =
       [ (q, v + minK)
@@ -88,7 +87,7 @@ step maze State{best=best0,frontier=frontier0} = State{best=best1,frontier=front
     frontier1 =
       Map.unionWith Set.union
       (Map.fromListWith Set.union [ (v, Set.fromList [q]) | (q,v) <- bestx ])
-      (Map.delete minK frontier0)
+      frontier0'
 
 adjacent :: Pos -> [Pos]
 adjacent (x,y) = [(x-1,y),(x+1,y),(x,y-1),(x,y+1)]
