@@ -1,6 +1,7 @@
 
-module Misc (check,readInts,collate) where
+module Misc (check,readInts,collate,look) where
 
+import Data.Map (Map)
 import qualified Data.Map as Map
 
 check :: (Eq a, Show a) => a -> a -> a
@@ -13,3 +14,6 @@ readInts path = do
 
 collate :: Ord k => [(k,v)] -> [(k,[v])]
 collate xs = Map.toList (Map.fromListWith (++) [ (k,[v]) | (k,v) <- xs ])
+
+look :: (Ord k, Show k) => k -> Map k v -> v
+look k m = maybe (error (show ("look",k))) id $ Map.lookup k m
