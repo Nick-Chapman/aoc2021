@@ -8,7 +8,7 @@ main = do
   print ("dayX, part1(sam)", check 45 $ part1 sam)
   print ("dayX, part1", check 33670 $ part1 inp)
   print ("dayX, part2(sam)", check 112 $ part2 sam)
-  print ("dayX, part2", check 4903 $ part2 inp) -- very slow (200s)
+  print ("dayX, part2", check 4903 $ part2 inp) -- <1sec now
 
 data Target = Target {xmin::Int,xmax::Int,ymin::Int,ymax::Int} deriving Eq
 
@@ -25,25 +25,22 @@ part1 target =
 part2 :: Target -> Int
 part2 Target{xmin,xmax,ymin,ymax} = do
   length $ nub
-    [ t
-    | tx <- [0..xmax]
+    [ (tx,ty)
+    | n <- [1.. 2 * (abs ymin) ]
+
     , ty <- [ymin..abs ymin]
-    , n <- [1.. 2 * (abs ymin) + 1]
-    , let t = Traj tx ty
-    , let _fp@(Pos fx fy) = sim n t
-    , fx >= xmin
-    , fx <= xmax
+    , let fy = simY n ty 0
     , fy >= ymin
     , fy <= ymax
+
+    , tx <- [0..xmax]
+    , let fx = simX n tx 0
+    , fx >= xmin
+    , fx <= xmax
     ]
 
-data Pos = Pos Int Int deriving Show
-data Traj = Traj Int Int deriving (Eq,Show)
+simX :: Int -> Int -> Int -> Int
+simX n tx px = if n == 0 then px else simX (n-1) (max (tx-1) 0) (px+tx)
 
-sim :: Int -> Traj -> Pos
-sim n t = snd $ last $ loop n t (Pos 0 0)
-  where
-    loop :: Int -> Traj -> Pos -> [(Traj,Pos)]
-    loop n t@(Traj tx ty) p@(Pos px py) =
-      if n == 0 then [] else
-        (t,p) : loop (n-1) (Traj (max (tx-1) 0) (ty-1)) (Pos (px+tx) (py+ty))
+simY :: Int -> Int -> Int -> Int
+simY n ty py = if n == 0 then py else simY (n-1) (ty-1) (py+ty)
