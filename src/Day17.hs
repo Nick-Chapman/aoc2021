@@ -5,10 +5,10 @@ import Misc (check)
 
 main :: IO ()
 main = do
-  print ("dayX, part1(sam)", check 45 $ part1 sam)
-  print ("dayX, part1", check 33670 $ part1 inp)
-  print ("dayX, part2(sam)", check 112 $ part2 sam)
-  print ("dayX, part2", check 4903 $ part2 inp) -- <1sec now
+  print ("day17, part1(sam)", check 45 $ part1 sam)
+  print ("day17, part1", check 33670 $ part1 inp)
+  print ("day17, part2(sam)", check 112 $ part2 sam)
+  print ("day17, part2", check 4903 $ part2 inp) -- <1sec now
 
 data Target = Target {xmin::Int,xmax::Int,ymin::Int,ymax::Int} deriving Eq
 
