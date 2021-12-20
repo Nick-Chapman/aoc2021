@@ -93,8 +93,9 @@ step iea Gen{bg=bg0,m=m0} = do
     do9 :: Nine -> Pix
     do9 i = if i `Set.member` iea then Light else Dark
   let
-    pointsToConsider =
-      [ b | a <- Map.keys m0, b <- nineBy a ]
+    pointsToConsider = do
+      let nub = Set.toList . Set.fromList
+      nub [ b | a <- Map.keys m0, b <- nineBy a ]
   Gen
     { bg = do9 (case bg0 of Light -> 511; Dark -> 0),
       m = Map.fromList
