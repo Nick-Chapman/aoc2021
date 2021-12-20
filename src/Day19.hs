@@ -139,7 +139,7 @@ doubleEdges xs =
 
 maybeOverlaps :: Scanner -> Scanner -> [E] --- Maybe
 maybeOverlaps (Scanner xs) (Scanner ys) =
-  nubBy (\(_,p) (_,q) -> p==q) [ (o,shift)
+  take 1 [ (o,shift)
   | o <- allO
   , x <- Set.toList xs
   , y <- Set.toList ys
