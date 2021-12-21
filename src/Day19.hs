@@ -105,11 +105,13 @@ maybeOverlaps :: Scanner -> Scanner -> Maybe E
 maybeOverlaps (Scanner xs) (Scanner ys) =
   listToMaybe [ (o,shift)
   | o <- allOrientation
-  , x <- Set.toList xs
   , y <- Set.toList ys
-  , let shift = x `sub` (appOrientation y o)
-  , let ys' = Set.map (add shift . flip appOrientation o) ys
-  , hasTwelveInCommon xs ys'
+  , let yO = appOrientation y o
+  , let ysO = Set.map (flip appOrientation o) ys
+  , x <- Set.toList xs
+  , let shift = x `sub` yO
+  , let ysOS = Set.map (add shift) ysO
+  , hasTwelveInCommon xs ysOS
   ]
 
 applyPath :: [E] -> Point -> Point
