@@ -10,14 +10,15 @@ main :: IO ()
 main = do
   sam <- load "input/day19.input.sam"
   inp <- load "input/day19.input"
+
+  -- play runs parts 1 & 2 together with prints
+  play sam
+  --play inp -- 100s -- TODO: optimize so this can be enabled!
+
   let _ = print ("day19, part1(sam)", check 79 $ part1 sam)
   let _ = print ("day19, part2(sam)", check 3621 $ part2 sam)
   let _ = print ("day19, part1", check 372 $ part1 inp) -- slow!
   let _ = print ("day19, part2", check 12241 $ part2 inp) -- slow!
-
-  -- play runs parts 1 & 2 together with prints
-  play sam
-  -- play inp -- 100s -- TODO: optimize so this can be enabled!
 
   pure ()
 
@@ -85,6 +86,7 @@ play scanners = do
   let ks = map fst zs
   let overlaps = findOverlaps scanners
   mapM_ print overlaps
+  print "**overlaps computed**"
   let overlapsT = transitiveClosure ks overlaps
   let
     pointsOfKey c = head [ Set.toList ps | (c',Scanner ps) <- zs, c==c' ]
@@ -122,7 +124,7 @@ findOverlaps scanners =
 applyPath :: [E] -> Point -> Point
 applyPath = \case
   [] -> \p -> p
-  (o,s):path -> \p -> applyPath path (appOrientation o p `add` s)
+  (o,s):path -> \p -> applyPath path (appOrientation p o `add` s)
 
 transitiveClosure :: [K] -> [((K,K),E)] -> [((K,K),[E])]
 transitiveClosure ks edges =
@@ -143,11 +145,11 @@ doubleEdges xs =
 maybeOverlaps :: Scanner -> Scanner -> [E] --- Maybe
 maybeOverlaps (Scanner xs) (Scanner ys) =
   take 1 [ (o,shift)
-  | o <- allO
+  | o <- allOrientation
   , x <- Set.toList xs
   , y <- Set.toList ys
-  , let shift = x `sub` (appOrientation o y)
-  , let ys' = Set.map (add shift . appOrientation o) ys
+  , let shift = x `sub` (appOrientation y o)
+  , let ys' = Set.map (add shift . flip appOrientation o) ys
   , hasTwelveInCommon xs ys'
   ]
 
@@ -164,22 +166,86 @@ hasTwelveInCommon xs ys = do
   let nXY = Set.size (xs `Set.union` ys)
   nX + nY - nXY >= 12
 
-appOrientation :: Orientation -> Point -> Point
-appOrientation (Orientation f) p = f p
 
-data Orientation = Orientation (Point -> Point)
-instance Show Orientation where show _ = "<O>"
+data Orientation
+  = O_X_Y_Z
+  | O_Y_Z_X
+  | O_Z_X_Y
+  | O_Z_Y_x
+  | O_X_Z_y
+  | O_Y_X_z
+  | O_x_y_Z
+  | O_y_z_X
+  | O_z_x_Y
+  | O_z_y_x
+  | O_x_z_y
+  | O_y_x_z
+  | O_Y_x_Z
+  | O_Z_y_X
+  | O_X_z_Y
+  | O_Y_z_x
+  | O_Z_x_y
+  | O_X_y_z
+  | O_y_X_Z
+  | O_z_Y_X
+  | O_x_Z_Y
+  | O_y_Z_x
+  | O_z_X_y
+  | O_x_Y_z
+  deriving Show
 
-allO :: [Orientation]
-allO = [ Orientation (o1 . o2 . o3 . o4)
-       | o1 <- [id,quarterXY]
-       , o2 <- [id,halfXY]
-       , o3 <- [id,quarterXZ]
-       , o4 <- [id,clock,anti]
-       ]
-  where
-    quarterXY   = \(a,b,c) -> (b,-a,c)
-    halfXY      = \(a,b,c) -> (-a,-b,c)
-    quarterXZ   = \(a,b,c) -> (c,b,-a)
-    clock       = \(a,b,c) -> (b,c,a)
-    anti        = \(a,b,c) -> (c,a,b)
+allOrientation :: [Orientation]
+allOrientation =
+  [ O_X_Y_Z
+  , O_Y_Z_X
+  , O_Z_X_Y
+  , O_Z_Y_x
+  , O_X_Z_y
+  , O_Y_X_z
+  , O_x_y_Z
+  , O_y_z_X
+  , O_z_x_Y
+  , O_z_y_x
+  , O_x_z_y
+  , O_y_x_z
+  , O_Y_x_Z
+  , O_Z_y_X
+  , O_X_z_Y
+  , O_Y_z_x
+  , O_Z_x_y
+  , O_X_y_z
+  , O_y_X_Z
+  , O_z_Y_X
+  , O_x_Z_Y
+  , O_y_Z_x
+  , O_z_X_y
+  , O_x_Y_z
+  ]
+
+
+appOrientation :: Point -> Orientation -> Point
+appOrientation (x,y,z) = \case
+  O_X_Y_Z -> (x,y,z)
+  O_Y_Z_X -> (y,z,x)
+  O_Z_X_Y -> (z,x,y)
+  O_Z_Y_x -> (z,y,-x)
+  O_X_Z_y -> (x,z,-y)
+  O_Y_X_z -> (y,x,-z)
+  O_x_y_Z -> (-x,-y,z)
+  O_y_z_X -> (-y,-z,x)
+  O_z_x_Y -> (-z,-x,y)
+  O_z_y_x -> (-z,-y,-x)
+  O_x_z_y -> (-x,-z,-y)
+  O_y_x_z -> (-y,-x,-z)
+  O_Y_x_Z -> (y,-x,z)
+  O_Z_y_X -> (z,-y,x)
+  O_X_z_Y -> (x,-z,y)
+  O_Y_z_x -> (y,-z,-x)
+  O_Z_x_y -> (z,-x,-y)
+  O_X_y_z -> (x,-y,-z)
+  O_y_X_Z -> (-y,x,z)
+  O_z_Y_X -> (-z,y,x)
+  O_x_Z_Y -> (-x,z,y)
+  O_y_Z_x -> (-y,z,-x)
+  O_z_X_y -> (-z,x,-y)
+  O_x_Y_z -> (-x,y,-z)
