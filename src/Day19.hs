@@ -1,5 +1,6 @@
 module Day19 (main) where
 
+import Data.Maybe (listToMaybe)
 import Data.List (nubBy)
 import Data.Set (Set)
 import Misc (check)
@@ -12,11 +13,13 @@ main = do
   inp <- load "input/day19.input"
 
   -- play runs parts 1 & 2 together with prints
-  play sam
-  --play inp -- 100s -- TODO: optimize so this can be enabled!
+  let _ = play sam
 
-  let _ = print ("day19, part1(sam)", check 79 $ part1 sam)
-  let _ = print ("day19, part2(sam)", check 3621 $ part2 sam)
+  --print ("day19, part1(sam)", check 79 $ part1 sam)
+  --print ("day19, part2(sam)", check 3621 $ part2 sam)
+
+  play inp -- 100s -- TODO: optimize so this can be enabled!
+
   let _ = print ("day19, part1", check 372 $ part1 inp) -- slow!
   let _ = print ("day19, part2", check 12241 $ part2 inp) -- slow!
 
@@ -84,10 +87,9 @@ play :: [Scanner] -> IO ()
 play scanners = do
   let zs = zip labels scanners
   let ks = map fst zs
-  let overlaps = findOverlaps scanners
-  mapM_ print overlaps
-  print "**overlaps computed**"
-  let overlapsT = transitiveClosure ks overlaps
+  overlapsT <- findTransitiveOverlaps ks scanners
+  --mapM_ print overlapsT
+  print "**transitive overlaps computed**"
   let
     pointsOfKey c = head [ Set.toList ps | (c',Scanner ps) <- zs, c==c' ]
   let
@@ -112,14 +114,47 @@ play scanners = do
   print ("day19, part2",maximum ws)
   pure ()
 
+
+
+findTransitiveOverlaps :: [K] -> [Scanner] -> IO [((K,K),[E])]
+findTransitiveOverlaps ks scanners = do
+  let overlaps = findOverlaps scanners
+  mapM_ print overlaps
+  print "**overlaps computed**"
+  let overlapsT = transitiveClosure ks overlaps
+  pure overlapsT
+
+----------------------------------------------------------------------
+{-
+_new_findTransitiveOverlaps :: [K] -> [Scanner] -> IO [((K,K),[E])]
+_new_findTransitiveOverlaps ks scanners = do
+  let edges = findOverlaps scanners
+  pure $ loop ([ (p,[e]) | (p,e) <- edges ] ++ [ ((k,k),[]) | k <- ks ])
+  where
+    loop :: [((K,K),[E])] -> [((K,K),[E])]
+    loop es = do
+      let es2 = doubleEdges es
+      case es2 of [] -> es; _ -> loop (es++es2)
+-}
+
+
+----------------------------------------------------------------------
+
 findOverlaps :: [Scanner] -> [((K,K),E)]
 findOverlaps scanners =
-  [ ((c2,c1),(o,shift))
+  [ (if b then (c2,c1) else (c1,c2), res)
   | (c1,s1) <- zip labels scanners
   , (c2,s2) <- zip labels scanners
-  , c2 /= c1
-  , (o,shift) <- maybeOverlaps s1 s2
+  , c1 < c2
+  , (b,res) <- maybeOverlapsEachWay s1 s2
   ]
+
+maybeOverlapsEachWay :: Scanner -> Scanner -> [(Bool,E)]
+maybeOverlapsEachWay s1 s2 = do
+  case maybeOverlaps s1 s2 of
+    Nothing -> []
+    Just res -> [ (True,res), (False,invertE res) ]
+
 
 applyPath :: [E] -> Point -> Point
 applyPath = \case
@@ -142,9 +177,15 @@ doubleEdges xs =
   | ((p,q),e1) <- xs, ((q',r),e2) <- xs, q==q', (p,r) `notElem` (map fst xs)
   ]
 
-maybeOverlaps :: Scanner -> Scanner -> [E] --- Maybe
+invertE :: E -> E
+invertE (o,p) = (invertO o, invertP (appOrientation p o))
+
+invertP :: Point -> Point
+invertP (x,y,z) = (-x,-y,-z)
+
+maybeOverlaps :: Scanner -> Scanner -> Maybe E
 maybeOverlaps (Scanner xs) (Scanner ys) =
-  take 1 [ (o,shift)
+  listToMaybe [ (o,shift)
   | o <- allOrientation
   , x <- Set.toList xs
   , y <- Set.toList ys
@@ -165,7 +206,6 @@ hasTwelveInCommon xs ys = do
   let nY = Set.size ys
   let nXY = Set.size (xs `Set.union` ys)
   nX + nY - nXY >= 12
-
 
 data Orientation
   = O_X_Y_Z
@@ -249,3 +289,30 @@ appOrientation (x,y,z) = \case
   O_y_Z_x -> (-y,z,-x)
   O_z_X_y -> (-z,x,-y)
   O_x_Y_z -> (-x,y,-z)
+
+invertO :: Orientation -> Orientation
+invertO = \case
+  O_X_Y_Z -> O_X_Y_Z
+  O_Y_Z_X -> O_Z_X_Y
+  O_Z_X_Y -> O_Y_Z_X
+  O_Z_Y_x -> O_z_Y_X
+  O_X_Z_y -> O_X_z_Y
+  O_Y_X_z -> O_Y_X_z
+  O_x_y_Z -> O_x_y_Z
+  O_y_z_X -> O_Z_x_y
+  O_z_x_Y -> O_y_Z_x
+  O_z_y_x -> O_z_y_x
+  O_x_z_y -> O_x_z_y
+  O_y_x_z -> O_y_x_z
+  O_Y_x_Z -> O_y_X_Z
+  O_Z_y_X -> O_Z_y_X
+  O_X_z_Y -> O_X_Z_y
+  O_Y_z_x -> O_z_X_y
+  O_Z_x_y -> O_y_z_X
+  O_X_y_z -> O_X_y_z
+  O_y_X_Z -> O_Y_x_Z
+  O_z_Y_X -> O_Z_Y_x
+  O_x_Z_Y -> O_x_Z_Y
+  O_y_Z_x -> O_z_x_Y
+  O_z_X_y -> O_Y_z_x
+  O_x_Y_z -> O_x_Y_z
