@@ -1,7 +1,7 @@
 module Day19 (main) where
 
-import Data.Maybe (listToMaybe)
 import Data.List (nubBy)
+import Data.Maybe (listToMaybe)
 import Data.Set (Set)
 import Misc (check)
 import ParE (Par,parse,separated,nl,int,lit,key,some,sat,alts)
@@ -9,19 +9,16 @@ import qualified Data.Set as Set
 
 main :: IO ()
 main = do
+{-
   sam <- load "input/day19.input.sam"
+  (s1,s2) <- part1and2 sam
+  print ("day19, part1(sam)", check 79 $ s1)
+  print ("day19, part2(sam)", check 3621 $ s2)
+-}
   inp <- load "input/day19.input"
-
-  -- play runs parts 1 & 2 together with prints
-  let _ = play sam
-
-  --print ("day19, part1(sam)", check 79 $ part1 sam)
-  --print ("day19, part2(sam)", check 3621 $ part2 sam)
-
-  play inp -- 100s -- TODO: optimize so this can be enabled!
-
-  let _ = print ("day19, part1", check 372 $ part1 inp) -- slow!
-  let _ = print ("day19, part2", check 12241 $ part2 inp) -- slow!
+  (r1,r2) <- part1and2 inp -- 43s
+  print ("day19, part1", check 372 $ r1)
+  print ("day19, part2", check 12241 $ r2)
 
   pure ()
 
@@ -48,47 +45,11 @@ type E = (Orientation,Point)
 labels :: [K]
 labels = ['a'..]
 
-part1 :: [Scanner] -> Int
-part1 scanners = do
-  let zs = zip labels scanners
-  let ks = map fst zs
-  let overlaps = findOverlaps scanners
-  let overlapsT = transitiveClosure ks overlaps
-  let
-    pointsOfKey c = head [ Set.toList ps | (c',Scanner ps) <- zs, c==c' ]
-  let
-    lookPath :: K -> K -> [E]
-    lookPath k1 k2 = head [ path | ((k1',k2'),path) <- overlapsT, k1==k1', k2==k2' ]
-  let k0 = head ks
-  let ps = [ p
-           | k <- ks
-           , let path = lookPath k k0
-           , let ps' = map (applyPath path) (pointsOfKey k)
-           , p <- ps' ]
-  Set.size (Set.fromList ps)
-
-part2 :: Setup -> Int
-part2 scanners = do
-  let zs = zip labels scanners
-  let ks = map fst zs
-  let overlaps = findOverlaps scanners
-  let overlapsT = transitiveClosure ks overlaps
-  let
-    lookPath :: K -> K -> [E]
-    lookPath k1 k2 = head [ path | ((k1',k2'),path) <- overlapsT, k1==k1', k2==k2' ]
-  let ws = [ (abs x + abs y + abs z)
-           | k1 <- ks, k2 <- ks
-           , let path = lookPath k1 k2
-           , let (x,y,z) = applyPath path (0,0,0)
-           ]
-  maximum ws
-
-play :: [Scanner] -> IO ()
-play scanners = do
+part1and2 :: [Scanner] -> IO (Int,Int)
+part1and2 scanners = do
   let zs = zip labels scanners
   let ks = map fst zs
   overlapsT <- findTransitiveOverlaps ks scanners
-  --mapM_ print overlapsT
   print "**transitive overlaps computed**"
   let
     pointsOfKey c = head [ Set.toList ps | (c',Scanner ps) <- zs, c==c' ]
@@ -96,25 +57,20 @@ play scanners = do
     lookPath :: K -> K -> [E]
     lookPath k1 k2 = head [ path | ((k1',k2'),path) <- overlapsT, k1==k1', k2==k2' ]
   let k0 = head ks
-  --print "paths..."
-  --mapM_ print [ (k,path) | k <- ks, let path = lookPath k0 k ]
   let ps = [ p
            | k <- ks
            , let path = lookPath k k0
            , let ps' = map (applyPath path) (pointsOfKey k)
            , p <- ps'
            ]
-  print ("day19, part1",Set.size (Set.fromList ps))
-  --print "pairwise..."
+  let part1 = Set.size (Set.fromList ps)
   let ws = [ (abs x + abs y + abs z)
            | k1 <- ks, k2 <- ks
            , let path = lookPath k1 k2
            , let (x,y,z) = applyPath path (0,0,0)
            ]
-  print ("day19, part2",maximum ws)
-  pure ()
-
-
+  let part2 = maximum ws
+  pure (part1,part2)
 
 findTransitiveOverlaps :: [K] -> [Scanner] -> IO [((K,K),[E])]
 findTransitiveOverlaps ks scanners = do
@@ -123,22 +79,6 @@ findTransitiveOverlaps ks scanners = do
   print "**overlaps computed**"
   let overlapsT = transitiveClosure ks overlaps
   pure overlapsT
-
-----------------------------------------------------------------------
-{-
-_new_findTransitiveOverlaps :: [K] -> [Scanner] -> IO [((K,K),[E])]
-_new_findTransitiveOverlaps ks scanners = do
-  let edges = findOverlaps scanners
-  pure $ loop ([ (p,[e]) | (p,e) <- edges ] ++ [ ((k,k),[]) | k <- ks ])
-  where
-    loop :: [((K,K),[E])] -> [((K,K),[E])]
-    loop es = do
-      let es2 = doubleEdges es
-      case es2 of [] -> es; _ -> loop (es++es2)
--}
-
-
-----------------------------------------------------------------------
 
 findOverlaps :: [Scanner] -> [((K,K),E)]
 findOverlaps scanners =
@@ -153,8 +93,24 @@ maybeOverlapsEachWay :: Scanner -> Scanner -> [(Bool,E)]
 maybeOverlapsEachWay s1 s2 = do
   case maybeOverlaps s1 s2 of
     Nothing -> []
-    Just res -> [ (True,res), (False,invertE res) ]
+    Just r12 -> [ (True, r12), (False, invertE r12) ]
 
+invertE :: E -> E
+invertE (o,p) = do
+  let o' = invertO o
+  let p' = invertP p
+  (o', appOrientation p' o')
+
+maybeOverlaps :: Scanner -> Scanner -> Maybe E
+maybeOverlaps (Scanner xs) (Scanner ys) =
+  listToMaybe [ (o,shift)
+  | o <- allOrientation
+  , x <- Set.toList xs
+  , y <- Set.toList ys
+  , let shift = x `sub` (appOrientation y o)
+  , let ys' = Set.map (add shift . flip appOrientation o) ys
+  , hasTwelveInCommon xs ys'
+  ]
 
 applyPath :: [E] -> Point -> Point
 applyPath = \case
@@ -177,22 +133,8 @@ doubleEdges xs =
   | ((p,q),e1) <- xs, ((q',r),e2) <- xs, q==q', (p,r) `notElem` (map fst xs)
   ]
 
-invertE :: E -> E
-invertE (o,p) = (invertO o, invertP (appOrientation p o))
-
 invertP :: Point -> Point
 invertP (x,y,z) = (-x,-y,-z)
-
-maybeOverlaps :: Scanner -> Scanner -> Maybe E
-maybeOverlaps (Scanner xs) (Scanner ys) =
-  listToMaybe [ (o,shift)
-  | o <- allOrientation
-  , x <- Set.toList xs
-  , y <- Set.toList ys
-  , let shift = x `sub` (appOrientation y o)
-  , let ys' = Set.map (add shift . flip appOrientation o) ys
-  , hasTwelveInCommon xs ys'
-  ]
 
 sub :: Point -> Point -> Point
 sub (a,b,c) (x,y,z) = (a-x,b-y,c-z)
@@ -232,7 +174,7 @@ data Orientation
   | O_y_Z_x
   | O_z_X_y
   | O_x_Y_z
-  deriving Show
+  deriving (Eq,Show)
 
 allOrientation :: [Orientation]
 allOrientation =
@@ -261,7 +203,6 @@ allOrientation =
   , O_z_X_y
   , O_x_Y_z
   ]
-
 
 appOrientation :: Point -> Orientation -> Point
 appOrientation (x,y,z) = \case
