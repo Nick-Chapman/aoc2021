@@ -10,12 +10,15 @@ main :: IO ()
 main = do
   sam <- load "input/day19.input.sam"
   inp <- load "input/day19.input"
-  play sam
-  let _ = play inp
-  print ("day19, part1(sam)", check 79 $ part1 sam)
-  print ("day19, part2(sam)", check 3621 $ part2 sam)
+  let _ = print ("day19, part1(sam)", check 79 $ part1 sam)
+  let _ = print ("day19, part2(sam)", check 3621 $ part2 sam)
   let _ = print ("day19, part1", check 372 $ part1 inp) -- slow!
   let _ = print ("day19, part2", check 12241 $ part2 inp) -- slow!
+
+  -- play runs parts 1 & 2 together with prints
+  play sam
+  -- play inp -- 100s -- TODO: optimize so this can be enabled!
+
   pure ()
 
 load :: FilePath -> IO Setup
@@ -97,14 +100,14 @@ play scanners = do
            , let ps' = map (applyPath path) (pointsOfKey k)
            , p <- ps'
            ]
-  print (Set.size (Set.fromList ps))
+  print ("day19, part1",Set.size (Set.fromList ps))
   --print "pairwise..."
   let ws = [ (abs x + abs y + abs z)
            | k1 <- ks, k2 <- ks
            , let path = lookPath k1 k2
            , let (x,y,z) = applyPath path (0,0,0)
            ]
-  print (maximum ws)
+  print ("day19, part2",maximum ws)
   pure ()
 
 findOverlaps :: [Scanner] -> [((K,K),E)]
