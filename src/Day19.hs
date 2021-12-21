@@ -105,14 +105,19 @@ maybeOverlaps (Scanner xs) (Scanner ys) = do
   listToMaybe
     [ (o,shift)
     | o <- allOrientation
-    , y <- ys
-    , let yO = appOrientation y o
     , let ysO = sort (map (flip appOrientation o) ys)
-    , x <- xs
+    , (yO,x) <- cross ysO xs
     , let shift = x `sub` yO
+    , not (tooFar shift)
     , let ysOS = map (add shift) ysO
     , matchN 12 xsSorted ysOS
     ]
+
+cross :: [a] -> [b] -> [(a,b)]
+cross xs ys = [ (x,y) | x <- xs, y <- ys ]
+
+tooFar :: Point -> Bool
+tooFar (x,y,z) = abs x > 2000 || abs y > 2000 || abs z > 2000
 
 matchN :: Int -> [Point] -> [Point] -> Bool
 matchN 0 = \_ _ -> True
