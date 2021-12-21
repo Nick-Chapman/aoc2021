@@ -18,8 +18,7 @@ data Param = Param
   }
 
 data State = State
-  { n :: Int
-  , next :: Int
+  { next :: Int
   , turn :: Player
   , p1_loc :: Int
   , p2_loc :: Int
@@ -31,7 +30,11 @@ data State = State
 data Player = P1 | P2 deriving Show
 
 part1 :: Param -> Int
-part1 p = score $ head $ dropWhile (not . stop p) $ iterate (step p) (start p)
+part1 p = do
+  let xs = iterate (step p) (start p)
+  let ys = takeWhile (not . stop p) xs
+  let zs = dropWhile (not . stop p) xs
+  score (head zs) * 3 * length ys
 
 start :: Param -> State
 step :: Param -> State -> State
@@ -39,8 +42,7 @@ stop :: Param -> State -> Bool
 score :: State -> Int
 
 start Param{p1_start,p2_start} = State
-  { n = 0
-  , next = 1
+  { next = 1
   , turn = P1
   , p1_loc = p1_start
   , p2_loc = p2_start
@@ -48,7 +50,7 @@ start Param{p1_start,p2_start} = State
   , p2_score = 0
   }
 
-step Param{d_size,b_size} State{n,next,turn,p1_loc,p2_loc,p1_score,p2_score} = do
+step Param{d_size,b_size} State{next,turn,p1_loc,p2_loc,p1_score,p2_score} = do
   let d1 = next
   let d2 = next `mod` d_size + 1
   let d3 = (next + 1) `mod` d_size + 1
@@ -56,8 +58,7 @@ step Param{d_size,b_size} State{n,next,turn,p1_loc,p2_loc,p1_score,p2_score} = d
   case turn of
     P1 -> do
       State
-        { n = n + 3
-        , next = (next + 2) `mod` d_size + 1
+        { next = (next + 2) `mod` d_size + 1
         , turn = P2
         , p1_loc = ((p1_loc + ddd - 1) `mod` b_size) + 1
         , p2_loc = p2_loc
@@ -66,8 +67,7 @@ step Param{d_size,b_size} State{n,next,turn,p1_loc,p2_loc,p1_score,p2_score} = d
         }
     P2 ->
       State
-        { n = n + 3
-        , next = (next + 2) `mod` d_size + 1
+        { next = (next + 2) `mod` d_size + 1
         , turn = P1
         , p1_loc = p1_loc
         , p2_loc = ((p2_loc + ddd - 1) `mod` b_size) + 1
@@ -80,9 +80,9 @@ stop Param{win} State {turn,p1_score,p2_score} =
     P1 -> p2_score >= win
     P2 -> p1_score >= win
 
-score State {n,turn,p1_score,p2_score} =
+score State {turn,p1_score,p2_score} =
   case turn of
-    P1 -> p1_score * n
-    P2 -> p2_score * n
+    P1 -> p1_score
+    P2 -> p2_score
 
 
