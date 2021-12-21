@@ -1,22 +1,20 @@
 module Day19 (main) where
 
-import Data.List (nubBy)
+import Data.List (nub,nubBy,sort)
 import Data.Maybe (listToMaybe)
-import Data.Set (Set)
 import Misc (check)
 import ParE (Par,parse,separated,nl,int,lit,key,some,sat,alts)
-import qualified Data.Set as Set
 
 main :: IO ()
 main = do
-{-
+
   sam <- load "input/day19.input.sam"
   (s1,s2) <- part1and2 sam
   print ("day19, part1(sam)", check 79 $ s1)
   print ("day19, part2(sam)", check 3621 $ s2)
--}
+
   inp <- load "input/day19.input"
-  (r1,r2) <- part1and2 inp -- 43s
+  (r1,r2) <- part1and2 inp
   print ("day19, part1", check 372 $ r1)
   print ("day19, part2", check 12241 $ r2)
 
@@ -28,7 +26,7 @@ load path = parse gram <$> readFile path
 gram :: Par Setup
 gram = separated blank scanner
   where
-    scanner = do header; xs <- separated nl point; pure $ Scanner (Set.fromList xs)
+    scanner = do header; xs <- separated nl point; pure $ Scanner xs
     header = do key "---"; _ <- some notNL; nl; pure ()
     notNL = do _ <- sat (/= '\n'); pure ()
     blank = do nl; nl
@@ -36,7 +34,7 @@ gram = separated blank scanner
     num = alts [ int , do lit '-'; negate <$> int]
 
 type Setup = [Scanner]
-data Scanner = Scanner (Set Point) deriving Show
+data Scanner = Scanner [Point] deriving Show
 type Point = (Int,Int,Int)
 
 type K = Char
@@ -52,18 +50,18 @@ part1and2 scanners = do
   overlapsT <- findTransitiveOverlaps ks scanners
   print "**transitive overlaps computed**"
   let
-    pointsOfKey c = head [ Set.toList ps | (c',Scanner ps) <- zs, c==c' ]
+    pointsOfKey c = head [ ps | (c',Scanner ps) <- zs, c==c' ]
   let
     lookPath :: K -> K -> [E]
     lookPath k1 k2 = head [ path | ((k1',k2'),path) <- overlapsT, k1==k1', k2==k2' ]
   let k0 = head ks
-  let ps = [ p
+  let ps = nub [ p
            | k <- ks
            , let path = lookPath k k0
            , let ps' = map (applyPath path) (pointsOfKey k)
            , p <- ps'
            ]
-  let part1 = Set.size (Set.fromList ps)
+  let part1 = length ps
   let ws = [ (abs x + abs y + abs z)
            | k1 <- ks, k2 <- ks
            , let path = lookPath k1 k2
@@ -102,17 +100,32 @@ invertE (o,p) = do
   (o', appOrientation p' o')
 
 maybeOverlaps :: Scanner -> Scanner -> Maybe E
-maybeOverlaps (Scanner xs) (Scanner ys) =
-  listToMaybe [ (o,shift)
-  | o <- allOrientation
-  , y <- Set.toList ys
-  , let yO = appOrientation y o
-  , let ysO = Set.map (flip appOrientation o) ys
-  , x <- Set.toList xs
-  , let shift = x `sub` yO
-  , let ysOS = Set.map (add shift) ysO
-  , hasTwelveInCommon xs ysOS
-  ]
+maybeOverlaps (Scanner xs) (Scanner ys) = do
+  let xsSorted = sort xs
+  listToMaybe
+    [ (o,shift)
+    | o <- allOrientation
+    , y <- ys
+    , let yO = appOrientation y o
+    , let ysO = sort (map (flip appOrientation o) ys)
+    , x <- xs
+    , let shift = x `sub` yO
+    , let ysOS = map (add shift) ysO
+    , matchN 12 xsSorted ysOS
+    ]
+
+matchN :: Int -> [Point] -> [Point] -> Bool
+matchN 0 = \_ _ -> True
+matchN n = \case
+  [] -> \_ -> False
+  x:xs -> \case
+    [] -> False
+    y:ys ->
+      if x == y then matchN (n-1) xs ys
+      else
+        if x < y
+        then matchN n xs (y:ys)
+        else matchN n (x:xs) ys
 
 applyPath :: [E] -> Point -> Point
 applyPath = \case
@@ -143,13 +156,6 @@ sub (a,b,c) (x,y,z) = (a-x,b-y,c-z)
 
 add :: Point -> Point -> Point
 add (p,q,r) (x,y,z) = (p+x,q+y,r+z)
-
-hasTwelveInCommon :: Set Point -> Set Point -> Bool
-hasTwelveInCommon xs ys = do
-  let nX = Set.size xs
-  let nY = Set.size ys
-  let nXY = Set.size (xs `Set.union` ys)
-  nX + nY - nXY >= 12
 
 data Orientation
   = O_X_Y_Z
