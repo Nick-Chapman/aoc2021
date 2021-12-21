@@ -1,13 +1,17 @@
 module Day21 (main) where
 
+import Data.Map (Map)
 import Misc (check)
+import qualified Data.Map as Map
 
 main :: IO ()
 main = do
-  let sam = Param { win = 1000, b_size = 10, d_size = 100, p1_start = 4, p2_start = 8 }
-  let inp = Param { win = 1000, b_size = 10, d_size = 100, p1_start = 8, p2_start = 3 }
+  let sam = (4,8)
+  let inp = (8,3)
   print ("day21, part1(sam)", check 739785 $ part1 sam)
   print ("day21, part1", check 412344 $ part1 inp)
+  print ("day21, part2(sam)", check 444356092776315 $ part2 sam)
+  print ("day21, part2", check 214924284932572 $ part2 inp)
 
 data Param = Param
   { win :: Int
@@ -24,12 +28,13 @@ data State = State
   , p1_score :: Int
   , p2_score :: Int
   }
-  deriving Show
+  deriving (Eq,Ord,Show)
 
-data Player = P1 | P2 deriving Show
+data Player = P1 | P2 deriving (Eq,Ord,Show)
 
-part1 :: Param -> Int
-part1 p = do
+part1 :: (Int,Int) -> Int
+part1 (p1_start,p2_start) = do
+  let p = Param { win = 1000, b_size = 10, d_size = 100, p1_start, p2_start }
   let
     play :: [Int] -> State -> [State]
     play = \case
@@ -37,6 +42,44 @@ part1 p = do
       _ -> undefined
   let (ys,zs) = span (not . stop p) $ play (cycle [1..100]) (start p)
   score (head zs) * 3 * length ys
+
+part2 :: (Int,Int) -> Int
+part2 (p1_start,p2_start) = do
+  let win = 21
+  let param = Param { win, b_size = 10, d_size = 100, p1_start, p2_start }
+  let throws = [ a+b+c | a <- [1,2,3], b <- [1,2,3], c <- [1,2,3] ]
+  let
+    winner :: State -> Player
+    winner State {turn} = case turn of P1 -> P2; P2 -> P1
+  let
+    nd_step :: State -> [State]
+    nd_step s = [ step param abc s | abc <- throws ]
+  let
+    combine :: [Res] -> Res
+    combine xs = (sum ys, sum zs) where (ys,zs) = unzip xs
+  let
+    rolls :: Memo -> [Res] -> [State] -> (Memo, [Res])
+    rolls m rs = \case
+      x:xs -> let (m2,r) = rolloutM m x in rolls m2 (r:rs) xs
+      [] -> (m,rs)
+    rolloutM :: Memo -> State -> (Memo, Res)
+    rolloutM m s = do
+      case Map.lookup s m of
+        Just res -> (m,res)
+        Nothing -> do
+          if stop param s then
+            (m, case winner s of P1 -> (1,0); P2 -> (0,1))
+            else do
+            let (m2,rs) = rolls m [] (nd_step s)
+            let r = combine rs
+            let m3 = Map.insert s r m2
+            (m3,r)
+  let memo0 = Map.empty
+  let (_,(p1,p2)) = rolloutM memo0 (start param)
+  if p1 > p2 then p1 else p2
+
+type Memo = Map State Res
+type Res = (Int,Int)
 
 start :: Param -> State
 step :: Param -> Int -> State -> State
@@ -79,5 +122,3 @@ score State {turn,p1_score,p2_score} =
   case turn of
     P1 -> p1_score
     P2 -> p2_score
-
-
