@@ -18,8 +18,7 @@ data Param = Param
   }
 
 data State = State
-  { next :: Int
-  , turn :: Player
+  { turn :: Player
   , p1_loc :: Int
   , p2_loc :: Int
   , p1_score :: Int
@@ -31,35 +30,32 @@ data Player = P1 | P2 deriving Show
 
 part1 :: Param -> Int
 part1 p = do
-  let xs = iterate (step p) (start p)
-  let ys = takeWhile (not . stop p) xs
-  let zs = dropWhile (not . stop p) xs
+  let
+    play :: [Int] -> State -> [State]
+    play = \case
+      a:b:c:dice -> \s -> s : play dice (step p (a+b+c) s)
+      _ -> undefined
+  let (ys,zs) = span (not . stop p) $ play (cycle [1..100]) (start p)
   score (head zs) * 3 * length ys
 
 start :: Param -> State
-step :: Param -> State -> State
+step :: Param -> Int -> State -> State
 stop :: Param -> State -> Bool
 score :: State -> Int
 
 start Param{p1_start,p2_start} = State
-  { next = 1
-  , turn = P1
+  { turn = P1
   , p1_loc = p1_start
   , p2_loc = p2_start
   , p1_score = 0
   , p2_score = 0
   }
 
-step Param{d_size,b_size} State{next,turn,p1_loc,p2_loc,p1_score,p2_score} = do
-  let d1 = next
-  let d2 = next `mod` d_size + 1
-  let d3 = (next + 1) `mod` d_size + 1
-  let ddd = d1 + d2 + d3
+step Param{b_size} ddd State{turn,p1_loc,p2_loc,p1_score,p2_score} = do
   case turn of
     P1 -> do
       State
-        { next = (next + 2) `mod` d_size + 1
-        , turn = P2
+        { turn = P2
         , p1_loc = ((p1_loc + ddd - 1) `mod` b_size) + 1
         , p2_loc = p2_loc
         , p1_score = p1_score + ((p1_loc + ddd - 1) `mod` b_size) + 1
@@ -67,8 +63,7 @@ step Param{d_size,b_size} State{next,turn,p1_loc,p2_loc,p1_score,p2_score} = do
         }
     P2 ->
       State
-        { next = (next + 2) `mod` d_size + 1
-        , turn = P1
+        { turn = P1
         , p1_loc = p1_loc
         , p2_loc = ((p2_loc + ddd - 1) `mod` b_size) + 1
         , p1_score = p1_score
