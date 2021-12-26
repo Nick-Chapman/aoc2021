@@ -12,24 +12,24 @@ import qualified Data.Set as Set
 main :: IO ()
 main = do
   let
-    sam =
+{-    sam =
       [(A,[B,A])
       ,(B,[C,D])
       ,(C,[B,C])
       ,(D,[D,A])
-      ]
+      ]-}
     inp =
       [(A,[D,B])
       ,(B,[D,A])
       ,(C,[C,A])
       ,(D,[B,C])
       ]
-    sam2 =
+{-    sam2 =
       [(A,[B,D,D,A])
       ,(B,[C,C,B,D])
       ,(C,[B,B,A,C])
       ,(D,[D,A,C,A])
-      ]
+      ]-}
     inp2 =
       [(A,[D,D,D,B])
       ,(B,[D,C,B,A])
@@ -41,14 +41,14 @@ main = do
     part1 = search 2
     part2 = search 4
 
-  s1 <- part1 sam
-  print ("day23, part1(sam)", check 12521 $ s1)
+--  s1 <- part1 sam
+--  print ("day23, part1(sam)", check 12521 $ s1)
 
   i1 <- part1 inp
   print ("day23, part1", check 16157 $ i1)
 
-  s2 <- part2 sam2
-  print ("day23, part2(sam)", check 44169 $ s2)
+--  s2 <- part2 sam2
+--  print ("day23, part2(sam)", check 44169 $ s2)
 
   i2 <- part2 inp2
   print ("day23, part2", check 43481 $ i2)
