@@ -12,25 +12,25 @@ import qualified Data.Set as Set
 main :: IO ()
 main = do
   let
-{-    sam =
+    _sam =
       [(A,[B,A])
       ,(B,[C,D])
       ,(C,[B,C])
       ,(D,[D,A])
-      ]-}
-    inp =
+      ]
+    _inp =
       [(A,[D,B])
       ,(B,[D,A])
       ,(C,[C,A])
       ,(D,[B,C])
       ]
-{-    sam2 =
+    _sam2 =
       [(A,[B,D,D,A])
       ,(B,[C,C,B,D])
       ,(C,[B,B,A,C])
       ,(D,[D,A,C,A])
-      ]-}
-    inp2 =
+      ]
+    _inp2 =
       [(A,[D,D,D,B])
       ,(B,[D,C,B,A])
       ,(C,[C,B,A,A])
@@ -38,20 +38,20 @@ main = do
       ]
 
   let
-    part1 = search 2
-    part2 = search 4
+    _part1 = search 2
+    _part2 = search 4
 
---  s1 <- part1 sam
---  print ("day23, part1(sam)", check 12521 $ s1)
+--  s1 <- _part1 _sam
+--  print ("day23, part1(sam)", check 12521 $ s1) -- (A*-->Dijk) 32s --> 74s
 
-  i1 <- part1 inp
-  print ("day23, part1", check 16157 $ i1)
+  i1 <- _part1 _inp
+  print ("day23, part1", check 16157 $ i1) -- (A*-->Dijk) 12s --> 77s
 
---  s2 <- part2 sam2
+--  s2 <- _part2 _sam2
 --  print ("day23, part2(sam)", check 44169 $ s2)
 
-  i2 <- part2 inp2
-  print ("day23, part2", check 43481 $ i2)
+--  i2 <- _part2 _inp2
+--  print ("day23, part2", check 43481 $ i2)
 
 
 -- A* search
@@ -110,6 +110,7 @@ step d SS{expanded=expanded0,frontier=frontier0} = SS {expanded, frontier}
 
     newS = map (\(_,_,q) -> q) newStateEdges
     expanded = Set.union expanded0 (Set.fromList newS)
+
     frontier = Map.unionWith Set.union newFrontier frontier0'
 
 
@@ -117,7 +118,8 @@ data SS = SS { expanded :: Set State , frontier :: Map Cost (Set Edge) }
 
 instance Show SS where
   show SS{expanded,frontier} =
-    show (Set.size expanded, (fst (Map.findMin frontier), fst (Map.findMax frontier)))
+    show (Set.size expanded, length (Map.keys frontier)
+         , (fst (Map.findMin frontier), fst (Map.findMax frontier)))
 
 type Setup = [(Type,[Type])]
 
