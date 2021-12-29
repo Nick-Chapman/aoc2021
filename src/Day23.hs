@@ -41,17 +41,17 @@ main = do
     _part1 = search 2
     _part2 = search 4
 
---  s1 <- _part1 _sam
---  print ("day23, part1(sam)", check 12521 $ s1) -- (A*-->Dijk) 32s --> 74s
+  s1 <- _part1 _sam
+  print ("day23, part1(sam)", check 12521 $ s1) -- 0.3
 
   i1 <- _part1 _inp
-  print ("day23, part1", check 16157 $ i1) -- (A*-->Dijk) 12s --> 77s
+  print ("day23, part1", check 16157 $ i1) -- 0.9
 
 --  s2 <- _part2 _sam2
---  print ("day23, part2(sam)", check 44169 $ s2)
+--  print ("day23, part2(sam)", check 44169 $ s2) -- 10
 
---  i2 <- _part2 _inp2
---  print ("day23, part2", check 43481 $ i2)
+  i2 <- _part2 _inp2
+  print ("day23, part2", check 43481 $ i2) -- 13
 
 
 -- A* search
@@ -78,7 +78,7 @@ search d iState = do
       case reachGoal ss of
         Nothing -> loop (i+1) (step d ss)
         Just (_path,cost) -> do
-          mapM_ print (reverse _path)
+          --mapM_ print (reverse _path)
           pure cost
 
   loop 0 ss0
@@ -101,9 +101,9 @@ step d SS{expanded=expanded0,frontier=frontier0} = SS {expanded, frontier}
     newFrontier :: Map Cost (Set (Path,Cost,State))
     newFrontier =
       Map.fromListWith Set.union
-      [ (a + b , Set.fromList [(m:path,a, q)])
+      [ (a + b , Set.fromList [(ms++path,a, q)])
       | (path, a1, p) <- newStateEdges
-      , (m,a2,q) <- legalMoves d p
+      , (ms,a2,q) <- legalMoves d p
       , let a = a1+a2
       , let b = lowerBoundCostToComplete q
       ]
@@ -125,7 +125,6 @@ type Setup = [(Type,[Type])]
 
 type Cost = Int
 type Edge = (Path,Cost,State)
-type Edge0 = (Move,Cost,State)
 type Path = [Move]
 
 data Type = A | B | C | D deriving (Eq,Ord,Show)
@@ -138,7 +137,7 @@ data State = State { burrows :: Map Type Burrow
 initState :: Setup -> State
 isComplete :: State -> Bool
 lowerBoundCostToComplete :: State -> Cost
-legalMoves :: Int -> State -> [Edge0]
+legalMoves :: Int -> State -> [Edge]
 
 initState xs = State{burrows,corridor = Map.empty}
   where burrows = Map.fromList [ (k,Wrong (0,ts)) | (k,ts) <- xs ]
@@ -174,7 +173,13 @@ _blocked State{corridor} = do
         _ ->
           False
 
-legalMoves d s = moveIn d s ++ nullMoves s ++ moveOut s
+legalMoves d s = [ forcedMove d e | e <- moveOut s ]
+
+forcedMove :: Int -> Edge -> Edge
+forcedMove d (p,c,s) =
+  case listToMaybe (moveIn d s ++ nullMoves s) of
+    Just (p2,c2,s2) -> forcedMove d (p2++p,c2+c,s2)
+    Nothing -> (p,c,s)
 
 data Move
   = MoveNull {kind:: Type, num:: Int}
@@ -192,17 +197,17 @@ instance Show Move where
       printf "i: %s-->(%s)-->%s [%d]"
       (show fromC) (show kind) (show kind) cost
 
-nullMoves :: State -> [Edge0]
+nullMoves :: State -> [Edge]
 nullMoves state@State{burrows} =
-  [ (MoveNull {kind = w, num = length ts}
+  [ ( [MoveNull {kind = w, num = length ts}]
     , 0, state { burrows = Map.insert w (Correct (length ts)) burrows })
   | (w,Wrong (_,ts)) <- Map.toList burrows
   , all (==w) ts
   ]
 
-moveOut :: State -> [Edge0]
+moveOut :: State -> [Edge]
 moveOut state@State{burrows=burrows0,corridor=corridor0} =
-  [ ( MoveOut {fromT=w,kind=t1,dest=c,cost}
+  [ ( [MoveOut {fromT=w,kind=t1,dest=c,cost}]
     , cost, state { burrows , corridor}
     )
   | (w,Wrong (n,t1:trest)) <- Map.toList burrows0
@@ -213,9 +218,9 @@ moveOut state@State{burrows=burrows0,corridor=corridor0} =
   , let cost = mulT t1 * (n + 1 + costCT w c)
   ]
 
-moveIn :: Int -> State -> [Edge0]
+moveIn :: Int -> State -> [Edge]
 moveIn d state@State{burrows=burrows0,corridor=corridor0} =
-  [ (MoveIn {fromC=c,kind=t,cost}
+  [ ( [MoveIn {fromC=c,kind=t,cost}]
     , cost, state { burrows, corridor}
     )
   | (c,t) <- Map.toList corridor0
