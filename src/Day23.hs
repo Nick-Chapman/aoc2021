@@ -147,7 +147,7 @@ isComplete State{burrows,corridor} =
   Map.null corridor && all (\(_,b) -> isCorrect b) (Map.toList burrows)
   where isCorrect = \case Correct{} -> True; Wrong{} -> False
 
-lowerBoundCostToComplete State{burrows,corridor} =
+lowerBoundCostToComplete _s@State{burrows,corridor} =
   sum [ cost
       | (w,Wrong (n,ts)) <- Map.toList burrows
       , (i,t) <- zip [n+1..] ts
@@ -159,6 +159,20 @@ lowerBoundCostToComplete State{burrows,corridor} =
       | (c,t) <- Map.toList corridor
       , let cost = mulT t * (abs (posC c - posT t))
       ]
+  + (if _blocked _s then 1000000 else 0)
+
+_blocked :: State -> Bool
+_blocked State{corridor} = do
+  let x = Map.lookup X corridor
+  let y = Map.lookup Y corridor
+  let z = Map.lookup Z corridor
+  blM X Y (x,y) || blM Y Z (y,z) || blM X Z (x,z)
+    where
+      blM :: Corr -> Corr -> (Maybe Type,Maybe Type) -> Bool
+      blM a b = \case
+        (Just ta,Just tb) -> (posT ta) > (posC b) && (posT tb) < (posC a)
+        _ ->
+          False
 
 legalMoves d s = moveIn d s ++ nullMoves s ++ moveOut s
 
