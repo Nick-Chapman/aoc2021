@@ -1,21 +1,28 @@
 module Day24 (main) where
 
-import Data.Char (ord)
-import Data.Map (Map)
-import Misc (check,collate)
-import ParE (Par,parse,separated,nl,int,lit,key,alts)
-import qualified Data.Map as Map
+import Data.List (sort)
+import Misc (check)
+import Par4 (Par,parse,separated,nl,int,lit,key,alts)
 
 main :: IO ()
 main = do
   inp <- load "input/day24.input"
-  play inp
+  print ("day24, part1", check 96929994293996 $ part1 inp)
+  print ("day24, part2", check 41811761181141 $ part2 inp)
+  gary <- load "input/day24.input.gary"
+  print ("day24, part1", check 98491959997994 $ part1 gary)
+  print ("day24, part2", check 61191516111321 $ part2 gary)
+    where
+      part1 = solve Part1
+      part2 = solve Part2
+
+data Part = Part1 | Part2
 
 load :: FilePath -> IO [Op]
 load path = parse gram <$> readFile path
 
 data Op = Inp Reg | Bin1 Bin Reg Int | Bin2 Bin Reg Reg deriving Show
-data Bin = Add | Mul | Mod | Div | Eql deriving Show
+data Bin = Add | Mul | Mod | Div | Eql | Shift deriving Show
 data Reg = W | X | Y | Z deriving Show
 
 gram :: Par [Op]
@@ -33,8 +40,8 @@ gram = separated nl op
         , do r <- reg; pure (Bin2 o l r) ]
     bin = alts
       [ do key "add"; pure Add
-      , do key "mul"; pure Mul
-      , do key "mod"; pure Mod
+      , do lit 'm'; alts [ do key "ul"; pure Mul
+                         , do key "od"; pure Mod ]
       , do key "div"; pure Div
       , do key "eql"; pure Eql
       ]
@@ -45,78 +52,84 @@ gram = separated nl op
       , do lit 'y'; pure Y
       , do lit 'z'; pure Z ]
 
-play :: [Op] -> IO ()
-play ops = do
+solve :: Part -> [Op] -> Int
+solve part ops = do
   let choices = take 14 [ Input c | c <- ['A'..] ]
-  let p1 = makeProg choices ops
-  print $ inlineSingleRefVars p1
-  print (check 0 $ test "96929994293996")
-  print (check 0 $ test "41811761181141")
-  where
-    test :: String -> Int
-    test ans = eval xs ops
-      where xs = [ ord c - ord '0' | c <- ans ]
+  let prog = makeProg choices ops
+  let solve = case part of Part1 -> solveHigh; Part2 -> solveLow
+  let xs = collectConstraints prog >>= solve
+  sum [ v * 10 ^ n
+      | (n,(_,v)) <- zip [0::Int ..] (reverse (sort xs))
+      ]
 
-type Id = String
-data Exp = Const Int | Input Char | Node Bin Exp Exp | Var Id
-data Prog = Final Exp | Bind Id Exp Prog
+type InputChoice = (InputId,Int)
+type InputId = Char
 
-instance Show Prog where
-  show = \case
-    Final e -> "final: " ++ show e
-    Bind x e p -> "let " ++ x ++ " = " ++ show e ++ "\n" ++ show p
+collectConstraints :: Prog -> [Con]
+collectConstraints = \case
+  Final{} -> []
+  Assert (Node Eql (Node Add (Input a) (Const n)) (Input b)) p  ->
+    Con a n b : collectConstraints p
+  Assert (Node Eql (Node Add (Node Add (Input a) (Const m)) (Const n)) (Input b)) p  ->
+    Con a (m+n) b : collectConstraints p
+  Assert{} ->
+    error "collectConstraints"
 
-instance Show Exp where
-  show = \case
-    Const n -> show n
-    Input c -> [c]
-    Node o l r -> paren (show l ++ " " ++ opChar o ++ " " ++ show r)
-    Var x -> x
-    where
-      paren s = "(" ++ s ++ ")"
-      opChar = \case Add -> "+"; Mul -> "*"; Mod -> "%"; Div -> "/"; Eql -> "=="
+data Con = Con Char Int Char deriving Show
 
-eval :: [Int] -> [Op] -> Int
-eval inputs ops = res where
-  Final (Const res) = makeProg (map Const inputs) ops
+solveHigh :: Con -> [InputChoice]
+solveHigh (Con a0 n0 b0) = do
+  let (a,n,b) = if a0 < b0 then (a0,n0,b0) else (b0,-n0,a0)
+  if n == 0 then [(a,9),(b,9)] else
+    if n < 0 then [(a,9),(b,9+n)] else
+      [(a,9-n),(b,9)]
+
+solveLow :: Con -> [InputChoice]
+solveLow (Con a0 n0 b0) = do
+  let (a,n,b) = if a0 < b0 then (a0,n0,b0) else (b0,-n0,a0)
+  if n == 0 then [(a,1),(b,1)] else
+    if n < 0 then [(a,1-n),(b,1)] else
+      [(a,1),(b,1+n)]
+
+data Exp = Const Int | Input Char | Node Bin Exp Exp | M26 Exp
+data Prog = Final Exp | Assert Exp Prog
 
 data State a = State {w::a,x::a,y::a,z::a}
 
 makeProg :: [Exp] -> [Op] -> Prog
-makeProg inputs prog = loop ids0 state0 inputs prog $ \res -> Final res
+makeProg inputs prog = loop state0 inputs prog $ \res -> Final res
   where
     set :: Reg -> a -> State a -> State a
     set reg v s = case reg of W -> s {w=v}; X -> s {x=v}; Y -> s {y=v}; Z -> s {z=v}
     get :: Reg -> State a -> a
     get reg State{w,x,y,z} = case reg of W -> w; X -> x; Y -> y; Z -> z
-    ids0 :: [Id]
-    ids0 = [ "v"++ show n | n <- [1::Int ..] ]
     zero = Const 0
     state0 = State {w=zero,x=zero,y=zero,z=zero}
-    loop :: [Id] -> State Exp -> [Exp] -> [Op] -> (Exp -> Prog) -> Prog
-    loop ids s xs prog k = case prog of
+    loop :: State Exp -> [Exp] -> [Op] -> (Exp -> Prog) -> Prog
+    loop s xs prog k = case prog of
       [] -> k $ get Z s
       Inp reg:ops -> case xs of
         [] -> error "inp"
-        x:xs -> loop ids (set reg x s) xs ops k
+        x:xs -> loop (set reg x s) xs ops k
       Bin1 o reg1 lit2 : ops -> do
         let s' = set reg1 (simpBin o (get reg1 s) (Const lit2)) s
-        loop ids s' xs ops k
+        loop s' xs ops k
       Bin2 o reg1 reg2 : ops -> do
-        let e = simpBin o (get reg1 s) (get reg2 s)
-        case isAtom e of
-          True -> do
-            let s' = set reg1 e s
-            loop ids s' xs ops k
-          False -> do
-            let (fresh:ids') = ids
-            let s' = set reg1 (Var fresh) s
-            Bind fresh e (loop ids' s' xs ops k)
-
-isAtom :: Exp -> Bool
-isAtom = \case
-  Node{} -> False
-  _ -> True
+        let lhs = get reg1 s
+        let rhs = get reg2 s
+        let e0 = simpBin o lhs rhs
+        let
+          tooBig :: Exp -> Bool
+          tooBig = \case
+            Const n -> n > 9
+            Node Add _ (Const n) -> n > 9
+            _ -> False
+          (f,e) =
+            case (o,tooBig lhs,rhs) of
+              (Eql,False,Input{}) -> (Assert e0, Const 1)
+              _ -> (id, e0)
+        let s' = set reg1 e s
+        f $ loop s' xs ops k
 
 evalBin :: Bin -> Int -> Int -> Int
 evalBin bin a b = case bin of
@@ -125,13 +138,18 @@ evalBin bin a b = case bin of
   Mod -> a `mod` b
   Div -> a `div` b
   Eql -> if a == b then 1 else 0
+  Shift -> a * 26 + b
 
 simpBin :: Bin -> Exp -> Exp -> Exp
 simpBin bin t1 t2 =
   case (bin,t1,t2) of
-    (_, Const i1, Const i2) ->
-      Const (evalBin bin i1 i2)
-
+    (_, Const i1, Const i2) -> Const (evalBin bin i1 i2)
+    (Mul, a, Const 26) -> M26 a
+    (Add, M26 a, b) -> Node Shift a b
+    (Mod, (Node Shift _ b), Const 26) -> b
+    (Div, (Node Shift a _), Const 26) -> a
+    (Mod, a, Const 26) -> a
+    (Div, _, Const 26) -> Const 0
     (Mul, Const 0, _) -> Const 0
     (Mul, Const 1, _) -> t2
     (Add, Const 0, _) -> t2
@@ -139,54 +157,15 @@ simpBin bin t1 t2 =
     (Mul, _, Const 1) -> t1
     (Add, _, Const 0) -> t1
     (Div, _, Const 1) -> t1
-
     (Eql, e, Input{}) ->
       if defNotADigit e then Const 0 else def
-
       where
         defNotADigit :: Exp -> Bool
         defNotADigit = \case
           Node Add (Node Mod _ (Const 26)) (Const n) -> n > 9
+          Node Add _ (Const n) -> n > 9
           Const n -> n > 9 || n < 1
           _ -> False
     _ ->
       def
   where def = Node bin t1 t2
-
-inlineSingleRefVars :: Prog -> Prog
-inlineSingleRefVars p1 = simpP Map.empty p1
-  where
-    single = singleUseVars p1
-
-    simpP :: Map Id Exp -> Prog -> Prog
-    simpP m = \case
-      Final e -> Final (simp m e)
-      Bind x e0 p -> do
-        let e = simp m e0
-        if x `elem` single
-        then simpP (Map.insert x e m) p
-        else Bind x e (simpP (Map.insert x (Var x) m) p)
-
-    simp :: Map Id Exp -> Exp -> Exp
-    simp m = \case
-      Var x -> maybe (error (show ("simp",x))) id $ Map.lookup x m
-      Node b e1 e2 -> Node b (simp m e1) (simp m e2)
-      e@Const{} -> e
-      e@Input{} -> e
-
-    singleUseVars :: Prog -> [Id]
-    singleUseVars p = qs
-      where
-        qs = [ x | (x,ns) <- collate [ (x,1::Int) | x <- refsP [] p], sum ns <= 1 ]
-
-        refsP :: [Id] -> Prog -> [Id]
-        refsP acc = \case
-          Final e -> refs acc e
-          Bind _ e p -> refsP (refs acc e) p
-
-        refs :: [Id] -> Exp -> [Id]
-        refs acc = \case
-          Var x -> x:acc
-          Node _ e1 e2 -> refs (refs acc e1) e2
-          Const{} -> acc
-          Input{} -> acc
