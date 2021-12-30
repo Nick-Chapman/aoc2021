@@ -7,11 +7,12 @@ import Par4 (Par,parse,separated,nl,int,lit,key,alts)
 main :: IO ()
 main = do
   inp <- load "input/day24.input"
+  play inp
   print ("day24, part1", check 96929994293996 $ part1 inp)
   print ("day24, part2", check 41811761181141 $ part2 inp)
-  gary <- load "input/day24.input.gary"
-  print ("day24, part1", check 98491959997994 $ part1 gary)
-  print ("day24, part2", check 61191516111321 $ part2 gary)
+  --gary <- load "input/day24.input.gary"
+  --print ("day24, part1(Gary)", check 98491959997994 $ part1 gary)
+  --print ("day24, part2(Gary)", check 61191516111321 $ part2 gary)
     where
       part1 = solve Part1
       part2 = solve Part2
@@ -52,15 +53,38 @@ gram = separated nl op
       , do lit 'y'; pure Y
       , do lit 'z'; pure Z ]
 
+
+instance Show Prog where
+  show = \case
+    Final e -> "final: " ++ show e
+    Assert e p -> "assert: " ++ show e ++ "\n" ++ show p
+
+instance Show Exp where
+  show = \case
+    Const n -> show n
+    Input c -> [c]
+    Node o l r -> paren (show l ++ " " ++ opChar o ++ " " ++ show r)
+    M26 e -> paren (show e ++ " *26")
+    where
+      paren s = "(" ++ s ++ ")"
+      opChar = \case Add -> "+"; Mul -> "*"; Mod -> "%"; Div -> "/"; Eql -> "=="; Shift -> "@"
+
+
+play :: [Op] -> IO ()
+play ops = do
+  print $ makeProg symbolicInputs ops
+
 solve :: Part -> [Op] -> Int
 solve part ops = do
-  let choices = take 14 [ Input c | c <- ['A'..] ]
-  let prog = makeProg choices ops
+  let prog = makeProg symbolicInputs ops
   let solve = case part of Part1 -> solveHigh; Part2 -> solveLow
   let xs = collectConstraints prog >>= solve
   sum [ v * 10 ^ n
       | (n,(_,v)) <- zip [0::Int ..] (reverse (sort xs))
       ]
+
+symbolicInputs :: [Exp]
+symbolicInputs = take 14 [ Input c | c <- ['A'..] ]
 
 type InputChoice = (InputId,Int)
 type InputId = Char
